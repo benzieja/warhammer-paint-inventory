@@ -34,21 +34,23 @@ else
 
     <div class="paint-table">
         <div class="paint-table-header">
+            <span>Owned</span>
             <span>Category</span>
             <span>Paint Name</span>
-            <span>Location</span>
-            <span>Owned</span>
+            <span class="loc-full">Location</span>
+            <span class="loc-short">R:Rw:C</span>
         </div>
         @foreach (var p in FilteredPaints)
         {
             <div class="paint-row @(p.IsOwned ? "is-owned" : "")">
-                <span class="cat-badge" style="background:@p.CategoryCssColor; color:@p.CategoryTextColor">@p.Category</span>
-                <span class="paint-name">@p.Name</span>
-                <span class="paint-location">R@(p.RackNumber) Row @p.Row Col @p.Column</span>
                 <span class="owned-toggle">
                     <input type="checkbox" checked="@p.IsOwned"
                            @onchange="e => ToggleOwned(p, (bool)e.Value!)" />
                 </span>
+                <span class="cat-badge" style="background:@p.CategoryCssColor; color:@p.CategoryTextColor">@p.Category</span>
+                <span class="paint-name">@p.Name</span>
+                <span class="paint-location loc-full">R@(p.RackNumber) Row @p.Row Col @p.Column</span>
+                <span class="paint-location loc-short">@(p.RackNumber):@(p.Row):@(p.Column)</span>
             </div>
         }
         @if (!FilteredPaints.Any())

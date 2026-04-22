@@ -1,0 +1,86 @@
+@page "/"
+@inject InventoryManager Manager
+@implements IAsyncDisposable
+
+<PageTitle>Paint Inventory - Dashboard</PageTitle>
+
+@if (!_loaded)
+{
+    <div class="loading-msg">Loading inventory...</div>
+}
+else
+{
+    <div class="page-header">
+        <h1>WARHAMMER PAINT INVENTORY</h1>
+    </div>
+
+    <div class="stat-cards">
+        <div class="stat-card">
+            <div class="stat-number">@_total</div>
+            <div class="stat-label">Total Paints</div>
+        </div>
+        <div class="stat-card owned">
+            <div class="stat-number">@_owned</div>
+            <div class="stat-label">Owned</div>
+        </div>
+        <div class="stat-card missing">
+            <div class="stat-number">@_missing</div>
+            <div class="stat-label">Missing</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">@_pct%</div>
+            <div class="stat-label">Complete</div>
+        </div>
+    </div>
+
+    <div class="progress-bar-outer">
+        <div class="progress-bar-inner" style="width: @_pct%"></div>
+    </div>
+
+    <h2 class="section-title">By Category</h2>
+    <div class="category-table">
+        @foreach (var (cat, (catTotal, catOwned)) in _byCategory)
+        {
+            int catMissing = catTotal - catOwned;
+            int catPct = catTotal > 0 ? (int)Math.Round(catOwned * 100.0 / catTotal) : 0;
+            var paint = new Paint { Category = cat };
+            <div class="category-row">
+                <span class="cat-badge" style="background:@paint.CategoryCssColor; color:@paint.CategoryTextColor">@cat</span>
+                <div class="cat-progress-outer">
+                    <div class="cat-progress-inner" style="width:@catPct%; background:@paint.CategoryCssColor"></div>
+                </div>
+                <span class="cat-stat owned-text">@catOwned</span>
+                <span class="cat-sep">/</span>
+                <span class="cat-stat">@catTotal</span>
+                <span class="cat-pct">@catPct%</span>
+            </div>
+        }
+    </div>
+
+    <div class="rack-info">
+        <span>Rack slots used: @_total / 288</span>
+        <span class="muted">(@(288 - _total) empty)</span>
+    </div>
+}
+
+@code {
+    private bool _loaded;
+    private int _total, _owned, _missing, _pct;
+    private Dictionary<PaintCategory, (int Total, int Owned)> _byCategory = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Manager.InitializeAsync();
+        RefreshStats();
+        _loaded = true;
+    }
+
+    private void RefreshStats()
+    {
+        (_total, _owned, _missing) = Manager.GetStats();
+        _pct = _total > 0 ? (int)Math.Round(_owned * 100.0 / _total) : 0;
+        _byCategory = Manager.GetStatsByCategory();
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}

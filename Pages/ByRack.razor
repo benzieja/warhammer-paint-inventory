@@ -1,0 +1,86 @@
+@page "/by-rack"
+@inject InventoryManager Manager
+
+<PageTitle>By Rack</PageTitle>
+
+@if (!_loaded)
+{
+    <div class="loading-msg">Loading inventory...</div>
+}
+else
+{
+    <div class="page-header">
+        <h1>BY RACK</h1>
+    </div>
+
+    <div class="rack-tabs">
+        @for (int r = 1; r <= 4; r++)
+        {
+            int rack = r;
+            <button class="tab @(_rack == rack ? "active" : "")" @onclick="() => _rack = rack">
+                Rack @rack
+            </button>
+        }
+    </div>
+
+    <div class="rack-legend">
+        @foreach (var cat in Enum.GetValues<PaintCategory>())
+        {
+            var p = new Paint { Category = cat };
+            <span class="cat-badge" style="background:@p.CategoryCssColor; color:@p.CategoryTextColor">@cat</span>
+        }
+    </div>
+
+    <div class="rack-grid">
+        @{
+            var grid = Manager.GetByRack(_rack).ToDictionary(p => (p.Row, p.Column));
+        }
+        <div class="rack-col-headers">
+            <div class="rack-row-label"></div>
+            @for (int c = 1; c <= 6; c++)
+            {
+                <div class="rack-col-header">Col @c</div>
+            }
+        </div>
+        @for (int row = 1; row <= 12; row++)
+        {
+            int r2 = row;
+            <div class="rack-row">
+                <div class="rack-row-label">Row @row</div>
+                @for (int col = 1; col <= 6; col++)
+                {
+                    int c2 = col;
+                    if (grid.TryGetValue((r2, c2), out var paint))
+                    {
+                        <div class="rack-cell @(paint.IsOwned ? "cell-owned" : "cell-missing")"
+                             style="border-left: 4px solid @paint.CategoryCssColor"
+                             @onclick="() => ToggleOwned(paint)">
+                            <span class="cell-check">@(paint.IsOwned ? "✓" : "○")</span>
+                            <span class="cell-name">@paint.Name</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="rack-cell cell-empty">—</div>
+                    }
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loaded;
+    private int _rack = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Manager.InitializeAsync();
+        _loaded = true;
+    }
+
+    private async Task ToggleOwned(Paint paint)
+    {
+        await Manager.SetOwnedAsync(paint.Name, !paint.IsOwned);
+    }
+}

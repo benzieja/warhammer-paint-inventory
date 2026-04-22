@@ -1,0 +1,98 @@
+@page "/all-paints"
+@inject InventoryManager Manager
+
+<PageTitle>All Paints</PageTitle>
+
+@if (!_loaded)
+{
+    <div class="loading-msg">Loading inventory...</div>
+}
+else
+{
+    <div class="page-header">
+        <h1>ALL PAINTS</h1>
+    </div>
+
+    <div class="filters">
+        <input class="search-box" type="text" placeholder="Search paint name..."
+               @bind="_search" @bind:event="oninput" />
+
+        <div class="filter-tabs">
+            <button class="tab @(_view == "all" ? "active" : "")" @onclick='() => _view = "all"'>All (@Manager.Paints.Count)</button>
+            <button class="tab @(_view == "owned" ? "active" : "")" @onclick='() => _view = "owned"'>Owned (@Manager.GetOwned().Count)</button>
+            <button class="tab @(_view == "missing" ? "active" : "")" @onclick='() => _view = "missing"'>Missing (@Manager.GetMissing().Count)</button>
+        </div>
+
+        <select class="cat-select" @bind="_categoryFilter">
+            <option value="">All Categories</option>
+            @foreach (var cat in Enum.GetValues<PaintCategory>())
+            {
+                <option value="@cat">@cat</option>
+            }
+        </select>
+    </div>
+
+    <div class="paint-table">
+        <div class="paint-table-header">
+            <span>Category</span>
+            <span>Paint Name</span>
+            <span>Location</span>
+            <span>Owned</span>
+        </div>
+        @foreach (var p in FilteredPaints)
+        {
+            <div class="paint-row @(p.IsOwned ? "is-owned" : "")">
+                <span class="cat-badge" style="background:@p.CategoryCssColor; color:@p.CategoryTextColor">@p.Category</span>
+                <span class="paint-name">@p.Name</span>
+                <span class="paint-location">R@(p.RackNumber) Row @p.Row Col @p.Column</span>
+                <span class="owned-toggle">
+                    <input type="checkbox" checked="@p.IsOwned"
+                           @onchange="e => ToggleOwned(p, (bool)e.Value!)" />
+                </span>
+            </div>
+        }
+        @if (!FilteredPaints.Any())
+        {
+            <div class="empty-msg">No paints match your filters.</div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loaded;
+    private string _search = "";
+    private string _view = "all";
+    private string _categoryFilter = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Manager.InitializeAsync();
+        _loaded = true;
+    }
+
+    private IEnumerable<Paint> FilteredPaints
+    {
+        get
+        {
+            var paints = _view switch
+            {
+                "owned"   => Manager.GetOwned(),
+                "missing" => Manager.GetMissing(),
+                _         => Manager.Paints.ToList()
+            };
+
+            if (!string.IsNullOrWhiteSpace(_search))
+                paints = paints.Where(p => p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (!string.IsNullOrWhiteSpace(_categoryFilter) && Enum.TryParse<PaintCategory>(_categoryFilter, out var cat))
+                paints = paints.Where(p => p.Category == cat).ToList();
+
+            return paints;
+        }
+    }
+
+    private async Task ToggleOwned(Paint paint, bool value)
+    {
+        await Manager.SetOwnedAsync(paint.Name, value);
+    }
+}

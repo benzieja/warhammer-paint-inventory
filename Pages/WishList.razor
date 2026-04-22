@@ -1,0 +1,81 @@
+@page "/wish-list"
+@inject InventoryManager Manager
+@inject IJSRuntime JS
+
+<PageTitle>Wish List</PageTitle>
+
+@if (!_loaded)
+{
+    <div class="loading-msg">Loading inventory...</div>
+}
+else
+{
+    <div class="page-header">
+        <h1>WISH LIST</h1>
+        <span class="subtitle">@_missing.Count paints missing</span>
+    </div>
+
+    @if (_missing.Count == 0)
+    {
+        <div class="all-owned-msg">You own every paint! Nothing on the wish list.</div>
+    }
+    else
+    {
+        <button class="btn-copy" @onclick="CopyToClipboard">Copy to Clipboard</button>
+
+        @foreach (var group in _missing.GroupBy(p => p.Category).OrderBy(g => g.Key))
+        {
+            var sample = new Paint { Category = group.Key };
+            <div class="wish-group">
+                <div class="wish-group-header">
+                    <span class="cat-badge" style="background:@sample.CategoryCssColor; color:@sample.CategoryTextColor">@group.Key</span>
+                    <span class="wish-count">@group.Count() paints</span>
+                </div>
+                <ul class="wish-list-items">
+                    @foreach (var p in group)
+                    {
+                        <li>@p.Name</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        @if (_copied)
+        {
+            <div class="copy-confirm">Copied to clipboard!</div>
+        }
+    }
+}
+
+@code {
+    private bool _loaded;
+    private bool _copied;
+    private List<Paint> _missing = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Manager.InitializeAsync();
+        _missing = Manager.GetMissing();
+        _loaded = true;
+    }
+
+    private async Task CopyToClipboard()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("WARHAMMER PAINT WISH LIST");
+        sb.AppendLine($"Total missing: {_missing.Count}");
+
+        foreach (var group in _missing.GroupBy(p => p.Category).OrderBy(g => g.Key))
+        {
+            sb.AppendLine();
+            sb.AppendLine($"=== {group.Key} ({group.Count()}) ===");
+            foreach (var p in group)
+                sb.AppendLine($"  - {p.Name}");
+        }
+
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", sb.ToString());
+        _copied = true;
+        await Task.Delay(2000);
+        _copied = false;
+    }
+}

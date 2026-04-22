@@ -309,13 +309,17 @@ h2 { margin: 1.5rem 0 0.5rem; font-size: 1.1rem; color: #aaa; letter-spacing: 1p
     margin-bottom: 1rem;
 }
 
-.rack-grid { overflow-x: auto; }
+.rack-grid {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
 
 .rack-col-headers {
     display: grid;
-    grid-template-columns: 60px repeat(6, 1fr);
+    grid-template-columns: 52px repeat(6, minmax(110px, 1fr));
     gap: 4px;
     margin-bottom: 2px;
+    min-width: max-content;
 }
 
 .rack-col-header {
@@ -327,9 +331,10 @@ h2 { margin: 1.5rem 0 0.5rem; font-size: 1.1rem; color: #aaa; letter-spacing: 1p
 
 .rack-row {
     display: grid;
-    grid-template-columns: 60px repeat(6, 1fr);
+    grid-template-columns: 52px repeat(6, minmax(110px, 1fr));
     gap: 4px;
     margin-bottom: 4px;
+    min-width: max-content;
 }
 
 .rack-row-label {

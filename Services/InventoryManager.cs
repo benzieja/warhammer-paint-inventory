@@ -1,37 +1,36 @@
-using Blazored.LocalStorage;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 public class InventoryManager
 {
-    private readonly ILocalStorageService _localStorage;
-    private const string OwnedKey = "paint-owned";
+    private readonly HttpClient _http;
+    private const string TablePath = "/rest/v1/owned_paints";
     private List<Paint> _paints = [];
 
     public IReadOnlyList<Paint> Paints => _paints;
 
-    public InventoryManager(ILocalStorageService localStorage)
+    public InventoryManager(IHttpClientFactory httpClientFactory)
     {
-        _localStorage = localStorage;
+        _http = httpClientFactory.CreateClient("Supabase");
     }
 
     public async Task InitializeAsync()
     {
         var masterList = PaintDatabase.BuildPaintList();
 
-        var ownedNames = await _localStorage.GetItemAsync<List<string>>(OwnedKey);
-        if (ownedNames != null)
+        try
         {
-            var ownedSet = new HashSet<string>(ownedNames, StringComparer.OrdinalIgnoreCase);
-            foreach (var paint in masterList)
-                paint.IsOwned = ownedSet.Contains(paint.Name);
+            var owned = await _http.GetFromJsonAsync<List<OwnedPaint>>($"{TablePath}?select=name");
+            if (owned != null)
+            {
+                var ownedSet = new HashSet<string>(owned.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+                foreach (var paint in masterList)
+                    paint.IsOwned = ownedSet.Contains(paint.Name);
+            }
         }
+        catch { }
 
         _paints = masterList;
-    }
-
-    private async Task SaveAsync()
-    {
-        var owned = _paints.Where(p => p.IsOwned).Select(p => p.Name).ToList();
-        await _localStorage.SetItemAsync(OwnedKey, owned);
     }
 
     public async Task SetOwnedAsync(string name, bool owned)
@@ -39,10 +38,20 @@ public class InventoryManager
         var paint = _paints.FirstOrDefault(p =>
             p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
-        if (paint != null)
+        if (paint == null) return;
+
+        paint.IsOwned = owned;
+
+        if (owned)
         {
-            paint.IsOwned = owned;
-            await SaveAsync();
+            var request = new HttpRequestMessage(HttpMethod.Post, TablePath);
+            request.Headers.Add("Prefer", "resolution=merge-duplicates");
+            request.Content = JsonContent.Create(new OwnedPaint(name));
+            await _http.SendAsync(request);
+        }
+        else
+        {
+            await _http.DeleteAsync($"{TablePath}?name=eq.{Uri.EscapeDataString(name)}");
         }
     }
 
@@ -72,4 +81,6 @@ public class InventoryManager
                     _paints.Count(p => p.Category == cat),
                     _paints.Count(p => p.Category == cat && p.IsOwned)
                 ));
+
+    private record OwnedPaint([property: JsonPropertyName("name")] string Name);
 }
